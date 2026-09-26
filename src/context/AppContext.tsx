@@ -13,6 +13,7 @@ import {
   isFirebaseConfigured,
   saveBusinessProfile,
   saveCollection,
+  clearCollection,
   subscribeToBusinessProfile,
   subscribeToCollection,
 } from '../services/firebase';
@@ -94,6 +95,8 @@ interface AppContextType {
   exportDatabase: () => void;
   importDatabase: (jsonString: string) => boolean;
   resetAllData: () => void;
+  clearAllData: () => void;
+  clearOperationsData: () => void;
 
   // Modal triggers
   openRentalModalWithId?: string;
@@ -676,7 +679,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetAllData = () => {
-    if (!isAdmin) {
+    if (currentUser && !isAdmin) {
       showToast('Solo el administrador puede restablecer la base de datos.', 'error');
       return;
     }
@@ -688,6 +691,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPayments(storageService.getPayments());
     setBusinessProfile(storageService.getBusinessProfile());
     showToast('Sistema restablecido con los datos iniciales de demostración.', 'info');
+  };
+
+  const clearAllData = async () => {
+    if (currentUser && !isAdmin) {
+      showToast('Solo el administrador puede vaciar la base de datos.', 'error');
+      return;
+    }
+
+    storageService.clearAllData();
+    setFurniture([]);
+    setClients([]);
+    setRentals([]);
+    setPayments([]);
+
+    if (isFirebaseConfigured) {
+      await clearCollection('furniture');
+      await clearCollection('clients');
+      await clearCollection('rentals');
+      await clearCollection('payments');
+    }
+
+    showToast('Todos los datos han sido borrados. Sistema listo para captura manual desde cero.', 'success');
+  };
+
+  const clearOperationsData = async () => {
+    if (currentUser && !isAdmin) {
+      showToast('Solo el administrador puede vaciar el historial.', 'error');
+      return;
+    }
+
+    storageService.clearOperationsData();
+    setRentals([]);
+    setPayments([]);
+
+    if (isFirebaseConfigured) {
+      await clearCollection('rentals');
+      await clearCollection('payments');
+    }
+
+    showToast('Historial de rentas y pagos eliminado. Catálogo de muebles y clientes conservado.', 'success');
   };
 
   return (
@@ -729,6 +772,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         exportDatabase,
         importDatabase,
         resetAllData,
+        clearAllData,
+        clearOperationsData,
         openRentalModalWithId,
         setOpenRentalModalWithId,
       }}

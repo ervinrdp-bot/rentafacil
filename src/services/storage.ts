@@ -548,5 +548,17 @@ export const storageService = {
     this.saveRentals(defaultRentals);
     this.savePayments(defaultPayments);
     this.saveBusinessProfile(defaultBusinessProfile);
+  },
+
+  clearAllData() {
+    this.saveFurniture([]);
+    this.saveClients([]);
+    this.saveRentals([]);
+    this.savePayments([]);
+  },
+
+  clearOperationsData() {
+    this.saveRentals([]);
+    this.savePayments([]);
   }
 };

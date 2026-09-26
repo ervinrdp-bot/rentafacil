@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { collection, doc, getFirestore, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getFirestore, onSnapshot, setDoc, writeBatch, getDocs } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -34,6 +34,20 @@ export const subscribeToCollection = <T,>(
     (snapshot) => onData(snapshot.docs.map((item) => item.data() as T)),
     (error) => onError?.(error)
   );
+};
+
+export const clearCollection = async (collectionName: string) => {
+  if (!firestoreDb) return;
+  try {
+    const snap = await getDocs(collection(firestoreDb, collectionName));
+    const batch = writeBatch(firestoreDb);
+    snap.docs.forEach((item) => {
+      batch.delete(item.ref);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error(`Error clearing collection ${collectionName}`, err);
+  }
 };
 
 export const saveCollection = async <T extends { id: string }>(

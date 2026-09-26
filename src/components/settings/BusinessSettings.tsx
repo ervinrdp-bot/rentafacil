@@ -13,6 +13,7 @@ import {
   Check,
   Shield,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 
 export const BusinessSettings: React.FC = () => {
@@ -22,6 +23,8 @@ export const BusinessSettings: React.FC = () => {
     exportDatabase,
     importDatabase,
     resetAllData,
+    clearAllData,
+    clearOperationsData,
   } = useApp();
 
   const [formData, setFormData] = useState<BusinessProfile>(businessProfile);
@@ -210,7 +213,7 @@ export const BusinessSettings: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
           {/* Download backup */}
           <button
             onClick={exportDatabase}
@@ -246,26 +249,66 @@ export const BusinessSettings: React.FC = () => {
             />
           </button>
 
-          {/* Reset Demo Data */}
+          {/* Clear Operations Only */}
           <button
             onClick={() => {
               if (
                 window.confirm(
-                  '¿Deseas restablecer el sistema a los datos iniciales de demostración? (Se sobreescribirán los datos actuales).'
+                  '¿Deseas eliminar todo el historial de rentas y pagos? (Se conservarán tus muebles y clientes registrados).'
+                )
+              ) {
+                clearOperationsData();
+              }
+            }}
+            className="p-4 bg-amber-50/60 hover:bg-amber-50 border border-amber-200/80 rounded-2xl text-left transition-all space-y-2 group"
+          >
+            <RotateCcw className="w-6 h-6 text-amber-600 group-hover:scale-110 transition-transform" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-900">Limpiar Rentas y Pagos</h4>
+              <p className="text-[11px] text-amber-700/80">
+                Borra todas las rentas y pagos para iniciar operaciones en cero, manteniendo tu catálogo.
+              </p>
+            </div>
+          </button>
+
+          {/* Clear All to Zero */}
+          <button
+            onClick={() => {
+              if (
+                window.confirm(
+                  '⚠️ ¿ATENCIÓN: Deseas vaciar TODO el sistema (muebles, clientes, rentas y pagos) para comenzar 100% desde cero manualmente?'
+                )
+              ) {
+                clearAllData();
+              }
+            }}
+            className="p-4 bg-rose-50/70 hover:bg-rose-50 border border-rose-300 rounded-2xl text-left transition-all space-y-2 group shadow-xs"
+          >
+            <Trash2 className="w-6 h-6 text-rose-600 group-hover:scale-110 transition-transform" />
+            <div>
+              <h4 className="text-sm font-bold text-rose-900">Vaciar Todo a Cero</h4>
+              <p className="text-[11px] text-rose-700/80">
+                Elimina toda la información del sistema para ingresar todo tu catálogo y clientes manualmente.
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {/* Restore demo data option as small link */}
+        <div className="pt-2 text-right">
+          <button
+            onClick={() => {
+              if (
+                window.confirm(
+                  '¿Deseas recargar los datos demo de ejemplo? Esto reemplazará los datos actuales.'
                 )
               ) {
                 resetAllData();
               }
             }}
-            className="p-4 bg-rose-50/50 hover:bg-rose-50 border border-rose-200/80 rounded-2xl text-left transition-all space-y-2 group"
+            className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
           >
-            <RotateCcw className="w-6 h-6 text-rose-600 group-hover:scale-110 transition-transform" />
-            <div>
-              <h4 className="text-sm font-bold text-rose-900">Restablecer Datos Demo</h4>
-              <p className="text-[11px] text-rose-700/80">
-                Recarga los muebles, clientes y pedidos de muestra predeterminados.
-              </p>
-            </div>
+            Restablecer datos de muestra (Demo)
           </button>
         </div>
       </div>
