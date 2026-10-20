@@ -52,6 +52,10 @@ interface AppContextType {
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
 
+  // Cloud & Firebase Status
+  cloudStatus: 'connecting' | 'connected' | 'error' | 'disabled';
+  cloudErrorMessage: string | null;
+
   // Data
   furniture: FurnitureItem[];
   clients: Client[];
@@ -173,34 +177,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [rentals, setRentals] = useState<RentalOrder[]>(() => storageService.getRentals());
   const [payments, setPayments] = useState<PaymentRecord[]>(() => storageService.getPayments());
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>(() => storageService.getBusinessProfile());
+
+  // Cloud status & Loop prevention flags
+  const [cloudStatus, setCloudStatus] = useState<'connecting' | 'connected' | 'error' | 'disabled'>(
+    () => (isFirebaseConfigured ? 'connecting' : 'disabled')
+  );
+  const [cloudErrorMessage, setCloudErrorMessage] = useState<string | null>(null);
+
+  const isSyncingFurnitureRef = useRef(false);
+  const isSyncingClientsRef = useRef(false);
+  const isSyncingRentalsRef = useRef(false);
+  const isSyncingPaymentsRef = useRef(false);
+  const isSyncingBusinessRef = useRef(false);
   const cloudReadyRef = useRef(false);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured) {
+      setCloudStatus('disabled');
+      return;
+    }
 
-    const handleError = () => {
-      showToast('Firestore no está disponible; se mantienen los datos locales.', 'error');
+    const handleError = (err: any) => {
+      console.error('Firebase error:', err);
+      const msg = err?.message || 'Error de conexión con Firebase';
+      setCloudStatus('error');
+      setCloudErrorMessage(msg);
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('insufficient')) {
+        showToast('Firebase: Permiso denegado. Revisa las Reglas en la consola de Firebase.', 'error');
+      } else {
+        showToast('Firestore no está disponible; se mantienen los datos locales.', 'error');
+      }
     };
 
     const unsubscribeFurniture = subscribeToCollection<FurnitureItem>('furniture', (items) => {
-      if (items.length > 0) setFurniture(items);
-      else void saveCollection('furniture', furniture);
+      setCloudStatus('connected');
+      setCloudErrorMessage(null);
+      isSyncingFurnitureRef.current = true;
+      setFurniture(items);
     }, handleError);
+
     const unsubscribeClients = subscribeToCollection<Client>('clients', (items) => {
-      if (items.length > 0) setClients(items);
-      else void saveCollection('clients', clients);
+      setCloudStatus('connected');
+      setCloudErrorMessage(null);
+      isSyncingClientsRef.current = true;
+      setClients(items);
     }, handleError);
+
     const unsubscribeRentals = subscribeToCollection<RentalOrder>('rentals', (items) => {
-      if (items.length > 0) setRentals(items);
-      else void saveCollection('rentals', rentals);
+      setCloudStatus('connected');
+      setCloudErrorMessage(null);
+      isSyncingRentalsRef.current = true;
+      setRentals(items);
     }, handleError);
+
     const unsubscribePayments = subscribeToCollection<PaymentRecord>('payments', (items) => {
-      if (items.length > 0) setPayments(items);
-      else void saveCollection('payments', payments);
+      setCloudStatus('connected');
+      setCloudErrorMessage(null);
+      isSyncingPaymentsRef.current = true;
+      setPayments(items);
     }, handleError);
+
     const unsubscribeBusiness = subscribeToBusinessProfile<BusinessProfile>((profile) => {
-      if (profile) setBusinessProfile(profile);
-      else void saveBusinessProfile(businessProfile);
+      setCloudStatus('connected');
+      setCloudErrorMessage(null);
+      if (profile) {
+        isSyncingBusinessRef.current = true;
+        setBusinessProfile(profile);
+      }
     }, handleError);
 
     cloudReadyRef.current = true;
@@ -215,31 +258,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Save changes automatically
+  // Save changes automatically without infinite loops
   useEffect(() => {
     storageService.saveFurniture(furniture);
-    if (cloudReadyRef.current) void saveCollection('furniture', furniture);
-  }, [furniture]);
+    if (isSyncingFurnitureRef.current) {
+      isSyncingFurnitureRef.current = false;
+      return;
+    }
+    if (cloudReadyRef.current && cloudStatus === 'connected') {
+      void saveCollection('furniture', furniture).catch((err) => {
+        console.error('Failed to sync furniture to cloud:', err);
+      });
+    }
+  }, [furniture, cloudStatus]);
 
   useEffect(() => {
     storageService.saveClients(clients);
-    if (cloudReadyRef.current) void saveCollection('clients', clients);
-  }, [clients]);
+    if (isSyncingClientsRef.current) {
+      isSyncingClientsRef.current = false;
+      return;
+    }
+    if (cloudReadyRef.current && cloudStatus === 'connected') {
+      void saveCollection('clients', clients).catch((err) => {
+        console.error('Failed to sync clients to cloud:', err);
+      });
+    }
+  }, [clients, cloudStatus]);
 
   useEffect(() => {
     storageService.saveRentals(rentals);
-    if (cloudReadyRef.current) void saveCollection('rentals', rentals);
-  }, [rentals]);
+    if (isSyncingRentalsRef.current) {
+      isSyncingRentalsRef.current = false;
+      return;
+    }
+    if (cloudReadyRef.current && cloudStatus === 'connected') {
+      void saveCollection('rentals', rentals).catch((err) => {
+        console.error('Failed to sync rentals to cloud:', err);
+      });
+    }
+  }, [rentals, cloudStatus]);
 
   useEffect(() => {
     storageService.savePayments(payments);
-    if (cloudReadyRef.current) void saveCollection('payments', payments);
-  }, [payments]);
+    if (isSyncingPaymentsRef.current) {
+      isSyncingPaymentsRef.current = false;
+      return;
+    }
+    if (cloudReadyRef.current && cloudStatus === 'connected') {
+      void saveCollection('payments', payments).catch((err) => {
+        console.error('Failed to sync payments to cloud:', err);
+      });
+    }
+  }, [payments, cloudStatus]);
 
   useEffect(() => {
     storageService.saveBusinessProfile(businessProfile);
-    if (cloudReadyRef.current) void saveBusinessProfile(businessProfile);
-  }, [businessProfile]);
+    if (isSyncingBusinessRef.current) {
+      isSyncingBusinessRef.current = false;
+      return;
+    }
+    if (cloudReadyRef.current && cloudStatus === 'connected') {
+      void saveBusinessProfile(businessProfile).catch((err) => {
+        console.error('Failed to sync business profile to cloud:', err);
+      });
+    }
+  }, [businessProfile, cloudStatus]);
 
   // Toast notification helper
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -747,6 +830,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toasts,
         showToast,
         removeToast,
+        cloudStatus,
+        cloudErrorMessage,
         furniture,
         clients,
         rentals,

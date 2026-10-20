@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Menu, Search, Calendar, Plus } from 'lucide-react';
+import { Menu, Search, Calendar, Plus, Cloud, CloudOff, AlertCircle } from 'lucide-react';
 
 interface NavbarProps {
   onToggleMobileMenu: () => void;
@@ -11,7 +11,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleMobileMenu,
   onOpenCreateRental,
 }) => {
-  const { searchTerm, setSearchTerm, activeTab } = useApp();
+  const { searchTerm, setSearchTerm, activeTab, cloudStatus, cloudErrorMessage } = useApp();
 
   const getTabTitle = (tab: string) => {
     switch (tab) {
@@ -64,8 +64,50 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Global Search & Quick Actions */}
-        <div className="flex items-center gap-3">
-          <div className="relative w-44 sm:w-64 md:w-80">
+        <div className="flex items-center gap-2.5">
+          {/* Cloud Sync Status Indicator */}
+          <div className="hidden md:flex items-center">
+            {cloudStatus === 'connected' && (
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs"
+                title="Conectado a Firebase: sincronización en tiempo real activa entre dispositivos"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+                Nube Activa
+              </span>
+            )}
+            {cloudStatus === 'connecting' && (
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-xs"
+                title="Conectando con base de datos en la nube..."
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <Cloud className="w-3.5 h-3.5 text-amber-600" />
+                Conectando...
+              </span>
+            )}
+            {cloudStatus === 'error' && (
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-xs"
+                title={cloudErrorMessage || 'Error de conexión con Firebase. Revisa las reglas en Firebase Console.'}
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                Nube Desconectada (Reglas)
+              </span>
+            )}
+            {cloudStatus === 'disabled' && (
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200 shadow-xs"
+                title="Modo local activado (sin Firebase)"
+              >
+                <CloudOff className="w-3.5 h-3.5 text-slate-400" />
+                Modo Local
+              </span>
+            )}
+          </div>
+
+          <div className="relative w-44 sm:w-60 md:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"

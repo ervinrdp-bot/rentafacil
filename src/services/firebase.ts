@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { collection, doc, getFirestore, onSnapshot, setDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, getFirestore, onSnapshot, setDoc, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -50,17 +50,43 @@ export const clearCollection = async (collectionName: string) => {
   }
 };
 
+export const deleteDocument = async (collectionName: string, id: string) => {
+  if (!firestoreDb) return;
+  try {
+    await deleteDoc(doc(firestoreDb, collectionName, id));
+  } catch (err) {
+    console.error(`Error deleting doc ${id} from ${collectionName}:`, err);
+  }
+};
+
 export const saveCollection = async <T extends { id: string }>(
   collectionName: string,
   items: T[]
 ) => {
   if (!firestoreDb) return;
 
-  const batch = writeBatch(firestoreDb);
-  items.forEach((item) => {
-    batch.set(doc(firestoreDb, collectionName, item.id), serialize(item));
-  });
-  await batch.commit();
+  try {
+    const existingSnap = await getDocs(collection(firestoreDb, collectionName));
+    const currentIds = new Set(items.map((i) => i.id));
+    const batch = writeBatch(firestoreDb);
+
+    // Delete documents that no longer exist locally
+    existingSnap.docs.forEach((docSnap) => {
+      if (!currentIds.has(docSnap.id)) {
+        batch.delete(docSnap.ref);
+      }
+    });
+
+    // Upsert current items
+    items.forEach((item) => {
+      batch.set(doc(firestoreDb, collectionName, item.id), serialize(item));
+    });
+
+    await batch.commit();
+  } catch (err) {
+    console.error(`Error saving collection ${collectionName}:`, err);
+    throw err;
+  }
 };
 
 export const saveBusinessProfile = async <T,>(profile: T) => {
